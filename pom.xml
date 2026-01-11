@@ -9,4 +9,8 @@
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>bookstore-microservices</name>
+
+    <modules>
+        <module>catalog-service</module>
+    </modules>
 </project>
