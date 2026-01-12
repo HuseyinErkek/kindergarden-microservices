@@ -1,3 +1,5 @@
+DELETE FROM products;
+
 INSERT INTO products (code, name, description, image_url, price) VALUES
                                                                      ('P101', 'Clean Code', 'A Handbook of Agile Software Craftsmanship by Robert C. Martin', 'https://via.placeholder.com/150', 120.00),
                                                                      ('P102', 'Effective Java', 'Best practices for the Java platform by Joshua Bloch', 'https://via.placeholder.com/150', 180.00),
