@@ -1,79 +1,124 @@
-version: '3'
+version: '3.8'
 
 vars:
-  # Modül adı ve altyapı dosya yolu değişkenleri
   MODULE: catalog-service
   INFRA_FILE: deployment/docker-compose/infra.yml
+  APPS_FILE: deployment/docker-compose/apps.yml
 
 tasks:
+
+  # ==========================================================
+  # DEFAULT
+  # ==========================================================
   default:
-    desc: "Varsayılan görev: Önce formatlar, sonra test edip derler"
+    desc: "Format + Test + Docker Image build"
     cmds:
       - task: build
 
-  # ------------------------------------------------------------------
-  # Geliştirme (Development) Görevleri
-  # ------------------------------------------------------------------
+  # ==========================================================
+  # CODE QUALITY
+  # ==========================================================
   format:
-    desc: "Kodu Spotless ile otomatik formatlar (Google Java Style)"
-    dir: '{{.MODULE}}'
+    desc: "Spotless ile kod formatlar"
     cmds:
-      - ./mvnw spotless:apply
+      - mvn -pl {{.MODULE}} spotless:apply
 
   check-format:
-    desc: "Kod formatı düzgün mü diye kontrol eder (Değişiklik yapmaz - CI için)"
-    dir: '{{.MODULE}}'
+    desc: "CI için format kontrolü"
     cmds:
-      - ./mvnw spotless:check
+      - mvn -pl {{.MODULE}} spotless:check
+
+  # ==========================================================
+  # BUILD
+  # ==========================================================
+  test:
+    desc: "Tüm testleri çalıştırır"
+    cmds:
+      - mvn -pl {{.MODULE}} clean verify
 
   build:
-    desc: "Projeyi temizler, formatlar, testleri çalıştırır ve paketler"
-    dir: '{{.MODULE}}'
-    deps: [format] # Önemli: Build'den önce her zaman format atar!
+    desc: "Format → Test → Docker image üretir"
+    deps: [format]
     cmds:
-      - ./mvnw clean verify
+      - mvn -pl {{.MODULE}} clean verify
+      - mvn -pl {{.MODULE}} spring-boot:build-image -DskipTests
 
+  # ==========================================================
+  # RUN (LOCAL - IDE GİBİ)
+  # ==========================================================
   run:
-    desc: "Uygulamayı localde başlatır (Önce DB'yi kontrol eder)"
-    dir: '{{.MODULE}}'
-    deps: [infra-up] # Uygulama başlamadan DB'yi ayağa kaldırır
+    desc: "Infra + Spring Boot (Lokal Çalışma)"
+    deps: [infra-up]
     cmds:
-      - ./mvnw spring-boot:run
+      - mvn -pl {{.MODULE}} spring-boot:run
 
-  # ------------------------------------------------------------------
-  # Altyapı (Infrastructure) Görevleri
-  # ------------------------------------------------------------------
+  # ==========================================================
+  # DOCKER COMPOSE - INFRA
+  # ==========================================================
   infra-up:
-    desc: "Docker Compose ile veritabanını ayağa kaldırır"
+    desc: "Postgres, Redis vs ayağa kaldırır"
     cmds:
       - docker-compose -f {{.INFRA_FILE}} up -d
-      - echo "Veritabanı başlatılıyor..."
+      - echo "⏳ Altyapı başlatıldı, veritabanının hazır olması bekleniyor..."
+      # Veritabanının 'healthy' olmasını bekleyen basit bir sleep (daha güvenli)
+      - task: sleep
 
   infra-down:
-    desc: "Docker Compose altyapısını durdurur ve siler"
+    desc: "Altyapıyı kapatır ve volume'leri temizler"
     cmds:
-      - docker-compose -f {{.INFRA_FILE}} down
+      - docker-compose -f {{.INFRA_FILE}} down -v
 
   infra-restart:
-    desc: "Altyapıyı kapatır, 5 saniye bekler ve temiz bir şekilde yeniden başlatır"
+    desc: "Temiz altyapı restart"
     cmds:
       - task: infra-down
       - task: sleep
       - task: infra-up
 
   infra-logs:
-    desc: "Konteyner loglarını izler"
+    desc: "Altyapı logları"
     cmds:
       - docker-compose -f {{.INFRA_FILE}} logs -f
 
-  # ------------------------------------------------------------------
-  # Yardımcı Görevler (Utility)
-  # ------------------------------------------------------------------
+  # ==========================================================
+  # FULL SYSTEM (APP + INFRA)
+  # ==========================================================
+  start:
+    desc: "Sırasıyla Infra ve App container başlatır"
+    deps: [build]
+    cmds:
+      # 1. Önce altyapıyı başlat (Ağ burada oluşur)
+      - task: infra-up
+
+      # 2. Sonra uygulamayı başlat (Artık ağı bulabilir)
+      - echo "🚀 Uygulama başlatılıyor..."
+      - docker-compose -f {{.APPS_FILE}} up -d
+
+  stop:
+    desc: "Tüm sistemi durdurur"
+    cmds:
+      - docker-compose -f {{.APPS_FILE}} down --remove-orphans
+      - docker-compose -f {{.INFRA_FILE}} down --remove-orphans
+
+  restart:
+    desc: "Tüm sistemi temizleyip yeniden başlatır"
+    cmds:
+      - task: stop
+      - task: start
+
+  logs:
+    desc: "Uygulama + DB logları"
+    cmds:
+      # İki dosyanın loglarını birleştirerek gösterir
+      - docker-compose -f {{.INFRA_FILE}} -f {{.APPS_FILE}} logs -f
+
+  # ==========================================================
+  # UTIL
+  # ==========================================================
   sleep:
-    desc: "Belirlenen süre kadar bekler (Varsayılan: 5sn)"
-    internal: true # Task listesinde kalabalık yapmasın diye gizledik
+    internal: true
     vars:
       DURATION: '{{default 5 .DURATION}}'
     cmds:
-      - echo "{{.DURATION}} saniye bekleniyor..."
+      - echo "⏳ {{.DURATION}} saniye bekleniyor..."
       - sleep {{.DURATION}}
