@@ -1,5 +1,6 @@
 version: "3.8"
-name: 'bookstore-microservices'
+name: 'bookstore-microservices' # Proje genel adı
+
 services:
   catalog-db:
     image: postgres:16-alpine
@@ -7,9 +8,13 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgres
+      - POSTGRES_DB=catalog_db  # <-- DÜZELTME: Uygulamanın aradığı isimle aynı olmalı
     ports:
       - "15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # <-- EKLEME: Veri kaybolmasın
+    networks:
+      - bookstore-network # <-- EKLEME: Ortak ağ
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
@@ -19,3 +24,11 @@ services:
       resources:
         limits:
           memory: 500m
+
+volumes:
+  postgres_data:
+
+# Ağı burada oluşturuyoruz
+networks:
+  bookstore-network:
+    name: bookstore-network
