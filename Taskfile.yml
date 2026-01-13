@@ -4,6 +4,8 @@ vars:
   MODULE: catalog-service
   INFRA_FILE: deployment/docker-compose/infra.yml
   APPS_FILE: deployment/docker-compose/apps.yml
+  PROJECT_VERSION:
+    sh: mvn help:evaluate -Dexpression=project.version -q -DforceStdout
 
 tasks:
 
@@ -44,7 +46,7 @@ tasks:
       - mvn -pl {{.MODULE}} spring-boot:build-image -DskipTests
 
   # ==========================================================
-  # RUN (LOCAL - IDE GİBİ)
+  # RUN (LOCAL)
   # ==========================================================
   run:
     desc: "Infra + Spring Boot (Lokal Çalışma)"
@@ -56,7 +58,7 @@ tasks:
   # DOCKER COMPOSE - INFRA
   # ==========================================================
   infra-up:
-    desc: "Postgres, Redis vs ayağa kaldırır"
+    desc: "Postgres, Redis vs. ayağa kaldırır"
     cmds:
       - docker-compose -f {{.INFRA_FILE}} up -d
       - echo "⏳ Altyapı başlatıldı, veritabanının hazır olması bekleniyor..."
@@ -92,8 +94,7 @@ tasks:
 
       # 2. Sonra uygulamayı başlat (Artık ağı bulabilir)
       - echo "🚀 Uygulama başlatılıyor..."
-      - docker-compose -f {{.APPS_FILE}} up -d
-
+      - APP_VERSION={{.PROJECT_VERSION}} docker-compose -f {{.APPS_FILE}} up -d
   stop:
     desc: "Tüm sistemi durdurur"
     cmds:

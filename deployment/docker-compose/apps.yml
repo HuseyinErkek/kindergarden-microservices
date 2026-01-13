@@ -1,7 +1,7 @@
 name: bookstore-microservices
 services:
   catalog-service:
-    image: huseyinerkek/catalog-service:0.0.1-SNAPSHOT
+    image: huseyinerkek/catalog-service:${APP_VERSION:-latest}
     container_name: catalog-service
     environment:
       - SPRING_PROFILES_ACTIVE=docker
