@@ -1,5 +1,5 @@
 version: "3.8"
-name: 'bookstore-microservices' # Proje genel adı
+name: 'bookstore-microservices'
 
 services:
   catalog-db:
@@ -8,11 +8,11 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=catalog_db  # <-- DÜZELTME: Uygulamanın aradığı isimle aynı olmalı
+      - POSTGRES_DB=catalog_db  # Uygulamanın aradığı isimle aynı olmalı
     ports:
       - "15432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data # <-- EKLEME: Veri kaybolmasın
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - bookstore-network # <-- EKLEME: Ortak ağ
     healthcheck:
